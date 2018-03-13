@@ -22,7 +22,7 @@ class RedmineOauthController < AccountController
         param_arr << "#{key}=#{val}"
       end
       params_str = param_arr.join("&")
-      redirect_to settings[:url].gsub(/\/+$/, '') + "/cas/oauth2.0/authorize?#{params_str}"
+      redirect_to settings[:url].gsub(/\/+$/, '') + "/oauth2.0/authorize?#{params_str}"
     else
       password_authentication
     end
@@ -38,8 +38,8 @@ class RedmineOauthController < AccountController
       code = params[:code]
       connection = Faraday::Connection.new settings[:url].gsub(/\/+$/, ''), :ssl => {:verify => false} # comment :ssl part is your certificate is OK
       response = connection.post do |req|
-        req.url "/cas/oauth2.0/accessToken"
-        req.params["grant_type"] = "authorization_code"
+        req.url "/oauth2.0/accessToken"
+        req.params["grant_type"] = "code"
         req.params["client_id"] = settings[:client_id]
         req.params["client_secret"] = settings[:client_secret]
         req.params["code"] = code
@@ -47,7 +47,7 @@ class RedmineOauthController < AccountController
       end
       token = CGI.parse(response.body)['access_token'][0].to_s
       response = connection.get do |req|
-        req.url "/cas/oauth2.0/profile?access_token=#{token}"
+        req.url "/oauth2.0/userinfo?access_token=#{token}"
       end
 
       # Profile parse
@@ -71,10 +71,10 @@ class RedmineOauthController < AccountController
    user = User.where(:login => info["redmine_login"]).first_or_create
     if user.new_record?
       # Create on the fly
-      user.firstname = info["redmine_attrs"].split("|")[0]
-      user.lastname = info["redmine_attrs"].split("|")[1]
-      user.mail = info["redmine_attrs"].split("|")[2]
-      user.login = info["redmine_login"]
+      user.firstname = info["name"]
+      user.lastname = ""
+      user.mail = info["email"]
+      user.login = info["login"]
       user.random_password
       user.register
 
